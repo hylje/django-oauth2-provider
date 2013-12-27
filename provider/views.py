@@ -503,9 +503,13 @@ class AccessToken(OAuthView, Mixin):
             pass
 
         if data.get('response_type') == 'token':
+            basepath = data.get("redirect_uri")
+            if not basepath:
+                basepath = access_token.client.redirect_uri
+
             if len(data.get('state', '')) > 0:
                 response_data['state'] = data.get('state')
-            path = "%s#%s" % (data.get('redirect_uri'), 
+            path = "%s#%s" % (basepath, 
                               urllib.urlencode(response_data))                       
             return HttpResponseRedirect(path)
 
