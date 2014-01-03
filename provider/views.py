@@ -265,8 +265,7 @@ class Authorize(OAuthView, Mixin):
         authorization_form = self.get_authorization_form(request, client,
             post_data, data)
             
-        if (not authorization_form.is_bound 
-            or not authorization_form.is_valid()):
+        if request.method == "GET" or not authorization_form.is_valid():
             return self.render_to_response({
                 'client': client,
                 'form': authorization_form,
