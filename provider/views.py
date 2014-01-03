@@ -500,7 +500,7 @@ class AccessToken(OAuthView, Mixin):
         except ObjectDoesNotExist:
             pass
 
-        if data.get('response_type') == 'token':
+        if data is not None and data.get('response_type') == 'token':
             basepath = data.get("redirect_uri")
             if not basepath:
                 basepath = access_token.client.redirect_uri
