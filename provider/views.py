@@ -264,23 +264,22 @@ class Authorize(OAuthView, Mixin):
 
         authorization_form = self.get_authorization_form(request, client,
             post_data, data)
+            
+        if (not authorization_form.is_bound 
+            or not authorization_form.is_valid()):
+            return self.render_to_response({
+                'client': client,
+                'form': authorization_form,
+                'oauth_data': data, })
 
-        if data.get('response_type', None):
-            if data.get('response_type') == 'code':                
-                if not authorization_form.is_bound \
-                    or not authorization_form.is_valid():
-                    return self.render_to_response({
-                                                    'client': client,
-                                                    'form': authorization_form,
-                                                    'oauth_data': data, })
-            #implements the 'implicit grant'
-            elif data.get('response_type') == 'token':
-                #uses request.user as the urls.py already required login_required
-                atm = AccessTokenModel.objects.create(user=request.user,
-                                                client=client,
-                                                scope=data.get('scope'))
-                at = AccessToken()
-                return at.access_token_response(atm, data)
+        #implements the 'implicit grant'
+        if data.get('response_type') == 'token':
+            #uses request.user as the urls.py already required login_required
+            atm = AccessTokenModel.objects.create(user=request.user,
+                                                  client=client,
+                                                  scope=data.get('scope'))
+            at = AccessToken()
+            return at.access_token_response(atm, data)
 
         code = self.save_authorization(request, client,
             authorization_form, data)
