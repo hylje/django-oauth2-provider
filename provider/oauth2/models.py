@@ -88,7 +88,7 @@ class Client(models.Model):
     logo = models.ImageField(upload_to=client_logo_image_path,
                              null=True, blank=True,
                              storage=constants.IMAGE_STORAGE,
-                             help_text="40x40 pixel logo of your application")
+                             help_text="80x80 pixel logo of your application")
     status = models.PositiveSmallIntegerField(max_length=2, choices=ClientStatus.CHOICES, default=1)
     last_updated_date = models.DateTimeField(auto_now=True)
     created_date = models.DateTimeField(auto_now_add=True)
