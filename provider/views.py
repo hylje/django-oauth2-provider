@@ -8,8 +8,8 @@ from django.utils.translation import ugettext as _
 from django.views.generic.base import TemplateView
 from django.core.exceptions import ObjectDoesNotExist
 
-from oauth2.models import Client
-from oauth2.models import AccessToken as AccessTokenModel
+from oauth2.models import Client, ClientStatus, AccessToken as AccessTokenModel
+
 from . import constants, scope
 
 
@@ -215,6 +215,12 @@ class Authorize(OAuthView, Mixin):
                 'error_description': _("An unauthorized client tried to access"
                     " your resources.")
             })
+        elif client.status == ClientStatus.DISABLED:
+            raise OAuthError({
+                'error': 'disabled_client',
+                'error_description': _("A disabled client tried to access"
+                    " your resources.")
+            })
 
         form = self.get_request_form(client, data)
 
@@ -264,7 +270,7 @@ class Authorize(OAuthView, Mixin):
 
         authorization_form = self.get_authorization_form(request, client,
             post_data, data)
-            
+
         if request.method == "GET" or not authorization_form.is_valid():
             return self.render_to_response({
                 'client': client,
@@ -305,13 +311,13 @@ class Redirect(OAuthView, Mixin):
     an error.
     """
 
-    def error_response(self, error, mimetype='application/json', status=400,
+    def error_response(self, error, content_type='application/json', status=400,
             **kwargs):
         """
         Return an error response to the client with default status code of
         *400* stating the error as outlined in :rfc:`5.2`.
         """
-        return HttpResponse(json.dumps(error), mimetype=mimetype,
+        return HttpResponse(json.dumps(error), content_type=content_type,
                 status=status, **kwargs)
 
     def get(self, request):
@@ -470,13 +476,13 @@ class AccessToken(OAuthView, Mixin):
         """
         raise NotImplementedError
 
-    def error_response(self, error, mimetype='application/json', status=400,
+    def error_response(self, error, content_type='application/json', status=400,
             **kwargs):
         """
         Return an error response to the client with default status code of
         *400* stating the error as outlined in :rfc:`5.2`.
         """
-        return HttpResponse(json.dumps(error), mimetype=mimetype,
+        return HttpResponse(json.dumps(error), content_type=content_type,
                 status=status, **kwargs)
 
     def access_token_response(self, access_token, data=None):
@@ -507,12 +513,12 @@ class AccessToken(OAuthView, Mixin):
 
             if len(data.get('state', '')) > 0:
                 response_data['state'] = data.get('state')
-            path = "%s#%s" % (basepath, 
-                              urllib.urlencode(response_data))                       
+            path = "%s#%s" % (basepath,
+                              urllib.urlencode(response_data))
             return HttpResponseRedirect(path)
 
         return HttpResponse(
-            json.dumps(response_data), mimetype='application/json'
+            json.dumps(response_data), content_type='application/json'
         )
 
     def authorization_code(self, request, data, client):

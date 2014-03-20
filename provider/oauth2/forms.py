@@ -9,7 +9,6 @@ from ..scope import SCOPE_NAMES
 from ..utils import now
 from .models import Client, Grant, RefreshToken
 
-
 class ClientForm(forms.ModelForm):
     """
     Form to create new consumers.
@@ -44,13 +43,18 @@ class ClientAuthForm(forms.Form):
         data['client'] = client
         return data
 
-
-class ScopeChoiceField(forms.ChoiceField):
+class ScopeChoiceField(forms.TypedMultipleChoiceField):
     """
     Custom form field that seperates values on space as defined in
     :rfc:`3.3`.
     """
     widget = forms.SelectMultiple
+
+    def prepare_value(self, value):
+        prepared = super(ScopeChoiceField, self).prepare_value(value)
+        if isinstance(value, int):
+            return scope.decompose(prepared)
+        return prepared
 
     def to_python(self, value):
         if not value:
@@ -82,6 +86,8 @@ class ScopeChoiceField(forms.ChoiceField):
                     'error_description': _("'%s' is not a valid scope.") % \
                             val})
 
+    def _has_changed(self, initial, data):
+        return True
 
 class ScopeMixin(object):
     """
@@ -92,11 +98,10 @@ class ScopeMixin(object):
         The scope is assembled by combining all the set flags into a single
         integer value which we can later check again for set bits.
 
-        If *no* scope is set, we return the default scope which is the first
-        defined scope in :attr:`provider.constants.SCOPES`.
+        If *no* scope is set, we return 0.
 
         """
-        default = SCOPES[0][0]
+        default = 0
 
         flags = self.cleaned_data.get('scope', [])
 
@@ -172,6 +177,17 @@ class AuthorizationRequestForm(ScopeMixin, OAuthForm):
 
         return redirect_uri
 
+    def clean_scope(self):
+        cleaned_scope = super(AuthorizationRequestForm, self).clean_scope()
+
+        # All of the requested scopes must exist in the allowed scopes
+        if (self.client.scope & cleaned_scope) != cleaned_scope:
+            raise OAuthValidationError({
+                'error': 'invalid_scope',
+                'error_description': _("The requested scope is not allowed "
+                    "for this client")
+            })
+        return cleaned_scope
 
 class AuthorizationForm(ScopeMixin, OAuthForm):
     """

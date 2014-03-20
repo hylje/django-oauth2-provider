@@ -8,11 +8,14 @@ Scopes can be combined, such as ``"read write"``. Note that a single
 See :class:`provider.scope.to_int` on how scopes are combined.
 """
 
+import operator
 from .constants import SCOPES
 
-SCOPE_NAMES = [(name, name) for (value, name) in SCOPES]
-SCOPE_NAME_DICT = dict([(name, value) for (value, name) in SCOPES])
-SCOPE_VALUE_DICT = dict([(value, name) for (value, name) in SCOPES])
+SCOPE_CHOICES = [(value, name) for (value, name, verbose) in SCOPES]
+SCOPE_NAMES = [(name, name) for (value, name, verbose) in SCOPES]
+SCOPE_NAME_DICT = dict([(name, value) for (value, name, verbose) in SCOPES])
+SCOPE_VALUE_DICT = dict([(value, name) for (value, name, verbose) in SCOPES])
+SCOPE_VERBOSE_DICT = dict([(name, verbose) for (value, name, verbose) in SCOPES])
 
 
 def check(wants, has):
@@ -102,3 +105,15 @@ def to_int(*names, **kwargs):
 
     return reduce(lambda prev, next: (prev | SCOPE_NAME_DICT.get(next, 0)),
             names, kwargs.pop('default', 0))
+
+def decompose(scope):
+    """
+    Returns a list of masks given a combined scope value
+    """
+    return [s for s in SCOPE_VALUE_DICT if s & scope]
+
+def compose(*scopes):
+    """
+    Returns a combined scope value given a list of masks
+    """
+    return reduce(operator.or_, scopes, 0)

@@ -18,9 +18,8 @@ WRITE = 1 << 2
 READ_WRITE = READ | WRITE
 
 DEFAULT_SCOPES = (
-    (READ, 'read'),
-    (WRITE, 'write'),
-    (READ_WRITE, 'read+write'),
+    (READ, 'read', 'Read your data'),
+    (WRITE, 'write', 'Write your data'),
 )
 
 SCOPES = getattr(settings, 'OAUTH_SCOPES', DEFAULT_SCOPES)
@@ -41,3 +40,7 @@ ENFORCE_CLIENT_SECURE = getattr(settings, 'OAUTH_ENFORCE_CLIENT_SECURE', True)
 SESSION_KEY = getattr(settings, 'OAUTH_SESSION_KEY', 'oauth')
 
 SINGLE_ACCESS_TOKEN = getattr(settings, 'OAUTH_SINGLE_ACCESS_TOKEN', False)
+
+LOGO_FOLDER = getattr(settings, 'OAUTH2_LOGO_FOLDER', 'logos')
+
+IMAGE_STORAGE = getattr(settings, 'OAUTH2_IMAGE_STORAGE', None)

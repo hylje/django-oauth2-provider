@@ -4,6 +4,7 @@ implement these models with fields and and methods to be compatible with the
 views in :attr:`provider.views`.
 """
 
+import os
 from django.db import models
 from django.conf import settings
 from .. import constants
@@ -11,6 +12,7 @@ from ..constants import CLIENT_TYPES
 from ..utils import now, short_token, long_token, get_code_expiry
 from ..utils import get_token_expiry, serialize_instance, deserialize_instance
 from .managers import AccessTokenManager
+from .. import scope
 
 try:
     from django.utils import timezone
@@ -19,6 +21,46 @@ except ImportError:
 
 AUTH_USER_MODEL = getattr(settings, 'AUTH_USER_MODEL', 'auth.User')
 
+class ClientStatus:
+    TEST = 1
+    LIVE = 2
+    DISABLED = 3
+
+    CHOICES = (
+        (TEST, 'TEST'),
+        (LIVE, 'LIVE'),
+        (DISABLED, 'DISABLED'),
+    )
+
+class ScopeField(models.IntegerField):
+    initial = {}
+
+    def __init__(self, *args, **kwargs):
+        kwargs['choices'] = scope.SCOPE_CHOICES
+        super(ScopeField, self).__init__(self, *args, **kwargs)
+
+    def formfield(self, **kwargs):
+        from .forms import ScopeChoiceField
+        defaults = {'choices_form_class': ScopeChoiceField}
+        defaults.update(kwargs)
+        return super(ScopeField, self).formfield(**defaults)
+
+    def validate(self, value, model_instance):
+        # all the bits in value must be present in list of all scopes
+        return value == (value & scope.to_int(*scope.SCOPE_NAME_DICT.values()))
+
+    def __unicode__(self):
+        return u'scope'
+
+    def __str__(self):
+        return 'scope'
+
+def client_logo_image_path(instance, filename):
+    filename_split = os.path.splitext(filename)
+    ext = filename_split[1]
+    if not ext:
+        ext = '.png'
+    return '/'.join([constants.LOGO_FOLDER, instance.client_id, 'icon' + ext])
 
 class Client(models.Model):
     """
@@ -36,16 +78,29 @@ class Client(models.Model):
 
     Clients are outlined in the :rfc:`2` and its subsections.
     """
+
     user = models.ForeignKey(AUTH_USER_MODEL, related_name='oauth2_client',
         blank=True, null=True)
     name = models.CharField(max_length=255, blank=True)
     url = models.URLField(help_text="Your application's URL.")
     redirect_uri = models.URLField(help_text="Your application's callback URL")
+    webhook_uri = models.URLField(help_text="Your application's webhook URL", null=True, blank=True)
+    logo = models.ImageField(upload_to=client_logo_image_path,
+                             null=True, blank=True,
+                             storage=constants.IMAGE_STORAGE,
+                             help_text="80x80 pixel logo of your application")
+    status = models.PositiveSmallIntegerField(max_length=2, choices=ClientStatus.CHOICES, default=1)
+    last_updated_date = models.DateTimeField(auto_now=True)
+    created_date = models.DateTimeField(auto_now_add=True)
     client_id = models.CharField(max_length=255, default=short_token)
     client_secret = models.CharField(max_length=255, default=long_token)
     client_type = models.IntegerField(choices=CLIENT_TYPES)
+    scope = ScopeField(default=0)
 
     def __unicode__(self):
+        return self.redirect_uri
+
+    def __str__(self):
         return self.redirect_uri
 
     def get_default_token_expiry(self):
@@ -103,11 +158,10 @@ class Grant(models.Model):
     code = models.CharField(max_length=255, default=long_token)
     expires = models.DateTimeField(default=get_code_expiry)
     redirect_uri = models.CharField(max_length=255, blank=True)
-    scope = models.IntegerField(default=0)
+    scope = ScopeField(default=0)
 
     def __unicode__(self):
         return self.code
-
 
 class AccessToken(models.Model):
     """
@@ -133,8 +187,7 @@ class AccessToken(models.Model):
     token = models.CharField(max_length=255, default=long_token, db_index=True)
     client = models.ForeignKey(Client)
     expires = models.DateTimeField()
-    scope = models.IntegerField(default=constants.SCOPES[0][0],
-            choices=constants.SCOPES)
+    scope = ScopeField(default=0)
 
     objects = AccessTokenManager()
 
@@ -188,3 +241,6 @@ class RefreshToken(models.Model):
 
     def __unicode__(self):
         return self.token
+
+from south.modelsinspector import add_introspection_rules
+add_introspection_rules([], ["^provider\.oauth2\.models\.ScopeField"])
