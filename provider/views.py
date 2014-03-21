@@ -225,7 +225,8 @@ class Authorize(OAuthView, Mixin):
         form = self.get_request_form(client, data)
 
         if not form.is_valid():
-            raise OAuthError(form.errors)
+            raise OAuthError({"error": "invalid_request",
+                              "error_description": form.errors.as_text())
 
         return client, form.cleaned_data
 

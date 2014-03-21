@@ -77,19 +77,22 @@ class AccessTokenView(AccessTokenView):
     def get_authorization_code_grant(self, request, data, client):
         form = AuthorizationCodeGrantForm(data, client=client)
         if not form.is_valid():
-            raise OAuthError(form.errors)
+            raise OAuthError({"error": "invalid_grant",
+                              "error_description": form.errors.as_text()})
         return form.cleaned_data.get('grant')
 
     def get_refresh_token_grant(self, request, data, client):
         form = RefreshTokenGrantForm(data, client=client)
         if not form.is_valid():
-            raise OAuthError(form.errors)
+            raise OAuthError({"error": "invalid_grant",
+                              "error_description": form.errors.as_text()})
         return form.cleaned_data.get('refresh_token')
 
     def get_password_grant(self, request, data, client):
         form = PasswordGrantForm(data, client=client)
         if not form.is_valid():
-            raise OAuthError(form.errors)
+            raise OAuthError({"error": "invalid_grant",
+                              "error_description": form.errors.as_text()})
         return form.cleaned_data
 
     def get_access_token(self, request, user, scope, client):
