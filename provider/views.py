@@ -280,10 +280,7 @@ class Authorize(OAuthView, Mixin):
 
         #implements the 'implicit grant'
         if data.get('response_type') == 'token':
-            #uses request.user as the urls.py already required login_required
-            atm = AccessTokenModel.objects.create(user=request.user,
-                                                  client=client,
-                                                  scope=data.get('scope'))
+            atm = self.create_implicit_access_token(request, client, data)
             at = AccessToken()
             return at.access_token_response(atm, data)
 
@@ -297,6 +294,18 @@ class Authorize(OAuthView, Mixin):
         self.cache_data(request, client.serialize(), "client")
 
         return HttpResponseRedirect(self.get_redirect_url(request))
+
+    def create_implicit_access_token(self, request, client, data):
+        """uses request.user as the urls.py already required login_required.
+
+        override this method to cover the implicit grant access token
+        creation, uses the standard access token view response
+        generator
+
+        """
+        return AccessTokenModel.objects.create(user=request.user,
+                                               client=client,
+                                               scope=data.get('scope'))
 
     def get(self, request):
         return self.handle(request, None)
